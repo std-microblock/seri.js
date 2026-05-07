@@ -16,7 +16,7 @@ During deserialization it restores prototypes with `Object.create()`, so constru
 - hash-based class tags with collision checks at registration time
 - shared references and self-references are preserved
 - unregistered class instances and function values fail fast by default
-- auto-registered built-in support for `Set`, `Map`, and `Uint8Array`
+- auto-registered built-in support for `Set`, `Map`, `Uint8Array`, `ArrayBuffer`, and Node `Buffer`
 - optional class-level `toPlain` / `fromPlain` handlers in `@seri(...)`
 - `from(buffer, Class)` adds runtime type validation
 
@@ -223,6 +223,8 @@ The following runtime types are supported without custom codecs:
 - `Set`
 - `Map`
 - `Uint8Array`
+- `ArrayBuffer`
+- Node `Buffer`
 
 They are auto-registered internally, so they use the same tag/registry pipeline as normal seri classes. They preserve shared references and can be nested inside registered classes, arrays, plain objects, and each other.
 

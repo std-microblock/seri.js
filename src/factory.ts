@@ -182,4 +182,22 @@ function registerBuiltins(registry: SeriRegistry): void {
     toPlain: (instance) => ({ data: Array.from(instance as Uint8Array) }),
     fromPlain: (plain) => new Uint8Array((plain.data as number[]) ?? []),
   })
+
+  registry.register(ArrayBuffer as unknown as Constructor<ArrayBuffer>, {
+    name: '@@seri/builtin/ArrayBuffer',
+    objectCreator: () => new ArrayBuffer(0),
+    toPlain: (instance) => ({ data: Array.from(new Uint8Array(instance as ArrayBuffer)) }),
+    fromPlain: (plain) => Uint8Array.from((plain.data as number[]) ?? []).buffer,
+  })
+
+  const nodeBuffer = (globalThis as { Buffer?: { new(...args: any[]): object; alloc(size: number): object; from(data: number[]): object } }).Buffer
+
+  if (nodeBuffer) {
+    registry.register(nodeBuffer as unknown as Constructor<object>, {
+      name: '@@seri/builtin/Buffer',
+      objectCreator: () => nodeBuffer.alloc(0),
+      toPlain: (instance) => ({ data: Array.from(instance as ArrayLike<number>) }),
+      fromPlain: (plain) => nodeBuffer.from((plain.data as number[]) ?? []),
+    })
+  }
 }

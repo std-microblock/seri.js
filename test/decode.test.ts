@@ -331,6 +331,34 @@ describe('decode', () => {
     expect(Array.from(value)).toEqual([1, 2, 255])
   })
 
+  it('restores ArrayBuffer values', () => {
+    const { fromPlain, toPlain } = makeSeri()
+
+    const tag = (toPlain(new ArrayBuffer(0)) as Record<string, unknown>)['!'] as number
+
+    const value = fromPlain({
+      '!': tag,
+      data: [1, 2, 255],
+    }) as ArrayBuffer
+
+    expect(value).toBeInstanceOf(ArrayBuffer)
+    expect(Array.from(new Uint8Array(value))).toEqual([1, 2, 255])
+  })
+
+  it('restores Buffer values', () => {
+    const { fromPlain, toPlain } = makeSeri()
+
+    const tag = (toPlain(Buffer.alloc(0)) as Record<string, unknown>)['!'] as number
+
+    const value = fromPlain({
+      '!': tag,
+      data: [1, 2, 255],
+    }) as Buffer
+
+    expect(Buffer.isBuffer(value)).toBe(true)
+    expect(Array.from(value)).toEqual([1, 2, 255])
+  })
+
   it('restores custom class plain handlers', () => {
     const { seri, toPlain, fromPlain } = makeSeri()
 

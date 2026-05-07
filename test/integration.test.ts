@@ -178,4 +178,31 @@ describe('integration', () => {
     expect(Array.from(mapValue)).toContain(restored.packet)
     expect(Array.from(mapValue)).toContain(restored.shared)
   })
+
+  it('round-trips shared ArrayBuffer and Buffer values', () => {
+    const { toPlain, fromPlain } = makeSeri()
+
+    const arrayBuffer = Uint8Array.from([1, 2, 3]).buffer
+    const nodeBuffer = Buffer.from([4, 5, 6])
+    const input = {
+      left: arrayBuffer,
+      right: arrayBuffer,
+      bufA: nodeBuffer,
+      bufB: nodeBuffer,
+    }
+
+    const plain = toPlain(input)
+    const restored = fromPlain(plain) as {
+      left: ArrayBuffer
+      right: ArrayBuffer
+      bufA: Buffer
+      bufB: Buffer
+    }
+
+    expect(restored.left).toBe(restored.right)
+    expect(Array.from(new Uint8Array(restored.left))).toEqual([1, 2, 3])
+    expect(restored.bufA).toBe(restored.bufB)
+    expect(Buffer.isBuffer(restored.bufA)).toBe(true)
+    expect(Array.from(restored.bufA)).toEqual([4, 5, 6])
+  })
 })

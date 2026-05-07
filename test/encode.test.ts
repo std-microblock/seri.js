@@ -206,6 +206,25 @@ describe('encode', () => {
     })
   })
 
+  it('encodes ArrayBuffer values', () => {
+    const { toPlain } = makeSeri()
+
+    const buffer = Uint8Array.from([1, 2, 255]).buffer
+    expect(toPlain(buffer)).toEqual({
+      '!': expect.any(Number),
+      data: [1, 2, 255],
+    })
+  })
+
+  it('encodes Buffer values', () => {
+    const { toPlain } = makeSeri()
+
+    expect(toPlain(Buffer.from([1, 2, 255]))).toEqual({
+      '!': expect.any(Number),
+      data: [1, 2, 255],
+    })
+  })
+
   it('encodes custom seriTo payloads', () => {
     const { seri, toPlain } = makeSeri()
 
