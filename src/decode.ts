@@ -81,6 +81,8 @@ function decodeRegistered(
     ;(instance as Record<string, unknown>)[key] = field?.codec ? field.codec.fromPlain(decoded) : decoded
   }
 
+  entry.metadata.afterDeserialize?.(instance)
+
   return instance
 }
 

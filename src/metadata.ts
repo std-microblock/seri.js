@@ -18,6 +18,9 @@ export function setClassOptions(ctor: Function, options?: SeriClassOptions): Cla
   if (options?.name) {
     metadata.name = options.name
   }
+  if (options?.afterDeserialize) {
+    metadata.afterDeserialize = options.afterDeserialize
+  }
   return metadata
 }
 

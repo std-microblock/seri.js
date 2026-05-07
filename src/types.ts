@@ -13,6 +13,7 @@ export interface SeriFactoryOptions {
 
 export interface SeriClassOptions {
   name?: string
+  afterDeserialize?: (instance: object) => void
 }
 
 export interface FieldCodec<TValue = unknown, TPlain = unknown> {
@@ -29,6 +30,7 @@ export interface FieldMetadata {
 
 export interface ClassMetadata {
   name?: string
+  afterDeserialize?: (instance: object) => void
   fields: Map<string, FieldMetadata>
 }
 

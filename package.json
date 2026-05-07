@@ -33,6 +33,7 @@
     "decorators"
   ],
   "devDependencies": {
+    "mobx": "^6.15.3",
     "typescript": "^5.8.3",
     "vitest": "^3.2.4"
   },

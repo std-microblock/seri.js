@@ -19,13 +19,13 @@ During deserialization it restores prototypes with `Object.create()`, so constru
 ## Install
 
 ```bash
-yarn add seri
+yarn add seri.js
 ```
 
 ## Quick Start
 
 ```ts
-import { makeSeri } from 'seri'
+import { makeSeri } from 'seri.js'
 
 const { seri, to, from } = makeSeri()
 
@@ -190,6 +190,63 @@ interface BufferSerializer {
 }
 ```
 
+## MobX
+
+MobX compatibility depends on which MobX shape you serialize.
+
+### Observable plain objects and arrays
+
+These usually work without extra configuration because their runtime shape remains plain-object-like or array-like.
+
+```ts
+import { observable } from 'mobx'
+import { toPlain, fromPlain } from 'seri.js'
+
+const state = observable({ count: 1, nested: { ok: true } })
+const plain = toPlain(state)
+const restored = fromPlain(plain)
+```
+
+### Observable fields with `toJS`
+
+If you want a field to always serialize as a detached plain object, use a field codec.
+
+```ts
+import { observable, toJS } from 'mobx'
+
+@seri()
+class Holder {
+  @seri.codec(
+    (value) => toJS(value),
+    (plain) => observable(plain),
+  )
+  state = observable({ count: 1 })
+}
+```
+
+### `makeAutoObservable(this)` class stores
+
+Because `seri.js` restores instances with `Object.create()` and does not call the constructor, MobX class stores need an explicit reinitialization hook.
+
+```ts
+import { makeAutoObservable } from 'mobx'
+
+@seri({
+  afterDeserialize: (instance) => {
+    makeAutoObservable(instance)
+  },
+})
+class CounterStore {
+  count = 1
+
+  constructor() {
+    makeAutoObservable(this)
+  }
+}
+```
+
+Without that hook, the prototype is restored but MobX observability is not.
+
 ## Errors
 
 The library throws specific errors for common failure modes.
@@ -199,3 +256,4 @@ The library throws specific errors for common failure modes.
 - `SeriUnknownTagError`: deserialization found an unregistered tag
 - `SeriTypeMismatchError`: `from(buffer, Class)` received a different runtime type
 - `SeriUnknownReferenceError`: deserialization found a missing reference target
+- `SeriUnsupportedValueError`: serialization encountered an unsupported runtime value
