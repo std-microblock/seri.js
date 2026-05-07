@@ -73,20 +73,25 @@ function decodeRegistered(
   delete source[tagKey]
   delete source[idKey]
 
+  const instance = createInstance(entry, source)
+  registerReference(value, instance, idKey, references)
+
   if (entry.metadata.fromPlain) {
     const decodedSource: Record<string, unknown> = {}
     for (const [key, raw] of Object.entries(source)) {
       decodedSource[key] = decode(raw)
     }
-    const instance = entry.metadata.fromPlain(decodedSource)
-    registerReference(value, instance, idKey, references)
+    const restored = entry.metadata.fromPlain(decodedSource, instance)
+    if (restored !== instance) {
+      registerReference(value, restored, idKey, references)
+      applyDefaults(restored, entry.metadata.fields, registry, tagKey)
+      entry.metadata.afterDeserialize?.(restored)
+      return restored
+    }
     applyDefaults(instance, entry.metadata.fields, registry, tagKey)
     entry.metadata.afterDeserialize?.(instance)
     return instance
   }
-
-  const instance = createInstance(entry, source)
-  registerReference(value, instance, idKey, references)
 
   for (const [key, raw] of Object.entries(value)) {
     if (key === tagKey || key === idKey) {

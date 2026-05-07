@@ -106,18 +106,35 @@ export function makeSeri(options: SeriFactoryOptions = {}): SeriApi {
 function registerBuiltins(registry: SeriRegistry): void {
   registry.register(Set as unknown as Constructor<Set<unknown>>, {
     name: '@@seri/builtin/Set',
+    objectCreator: 'ctor',
     toPlain: (instance) => ({ values: Array.from((instance as Set<unknown>).values()) }),
-    fromPlain: (plain) => new Set((plain.values as unknown[]) ?? []),
+    fromPlain: (plain, instance) => {
+      const result = (instance as Set<unknown>) ?? new Set<unknown>()
+      result.clear()
+      for (const item of (plain.values as unknown[]) ?? []) {
+        result.add(item)
+      }
+      return result
+    },
   })
 
   registry.register(Map as unknown as Constructor<Map<unknown, unknown>>, {
     name: '@@seri/builtin/Map',
+    objectCreator: 'ctor',
     toPlain: (instance) => ({ entries: Array.from((instance as Map<unknown, unknown>).entries()) }),
-    fromPlain: (plain) => new Map((plain.entries as [unknown, unknown][]) ?? []),
+    fromPlain: (plain, instance) => {
+      const result = (instance as Map<unknown, unknown>) ?? new Map<unknown, unknown>()
+      result.clear()
+      for (const [key, value] of (plain.entries as [unknown, unknown][]) ?? []) {
+        result.set(key, value)
+      }
+      return result
+    },
   })
 
   registry.register(Uint8Array as unknown as Constructor<Uint8Array>, {
     name: '@@seri/builtin/Uint8Array',
+    objectCreator: () => new Uint8Array(),
     toPlain: (instance) => ({ data: Array.from(instance as Uint8Array) }),
     fromPlain: (plain) => new Uint8Array((plain.data as number[]) ?? []),
   })

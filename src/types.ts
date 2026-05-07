@@ -17,7 +17,7 @@ export interface SeriClassOptions {
   objectCreator?: 'noctor' | 'ctor' | (() => object)
   afterDeserialize?: (instance: object) => void
   toPlain?: (instance: object) => Record<string, unknown>
-  fromPlain?: (plain: Record<string, unknown>) => object
+  fromPlain?: (plain: Record<string, unknown>, instance?: object) => object
 }
 
 export interface FieldCodec<TValue = unknown, TPlain = unknown> {
@@ -41,7 +41,7 @@ export interface ClassMetadata {
   objectCreator: 'noctor' | 'ctor' | (() => object)
   afterDeserialize?: (instance: object) => void
   toPlain?: (instance: object) => Record<string, unknown>
-  fromPlain?: (plain: Record<string, unknown>) => object
+  fromPlain?: (plain: Record<string, unknown>, instance?: object) => object
   fields: Map<string, FieldMetadata>
 }
 
