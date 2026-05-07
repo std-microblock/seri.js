@@ -14,6 +14,8 @@ export interface SeriFactoryOptions {
 export interface SeriClassOptions {
   name?: string
   afterDeserialize?: (instance: object) => void
+  toPlain?: (instance: object) => Record<string, unknown>
+  fromPlain?: (plain: Record<string, unknown>) => object
 }
 
 export interface FieldCodec<TValue = unknown, TPlain = unknown> {
@@ -31,6 +33,8 @@ export interface FieldMetadata {
 export interface ClassMetadata {
   name?: string
   afterDeserialize?: (instance: object) => void
+  toPlain?: (instance: object) => Record<string, unknown>
+  fromPlain?: (plain: Record<string, unknown>) => object
   fields: Map<string, FieldMetadata>
 }
 
@@ -39,6 +43,10 @@ export interface RegisteredClass<T extends object = object> {
   className: string
   tag: number
   metadata: ClassMetadata
+}
+
+export interface SeriInstance {
+  seriTo(): ArrayBuffer
 }
 
 export interface SeriDecorator {

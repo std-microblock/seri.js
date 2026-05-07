@@ -14,6 +14,8 @@ During deserialization it restores prototypes with `Object.create()`, so constru
 - hash-based class tags with collision checks at registration time
 - shared references and self-references are preserved
 - unregistered class instances and function values fail fast by default
+- built-in support for `Set`, `Map`, and `Uint8Array`
+- optional class-level `toPlain` / `fromPlain` handlers in `@seri(...)`
 - `from(buffer, Class)` adds runtime type validation
 
 ## Install
@@ -107,6 +109,36 @@ Options:
 
 If `name` is omitted, the class tag is derived from `class.name`.
 
+Registered classes can also define custom payload handlers in decorator options:
+
+```ts
+@seri({
+  toPlain: (instance) => {
+    const point = instance as Point
+    return { packed: [point.x, point.y] }
+  },
+  fromPlain: (plain) => {
+    const point = Object.create(Point.prototype) as Point
+    ;[point.x, point.y] = plain.packed
+    return point
+  },
+})
+class Point {
+  x = 1
+  y = 2
+}
+```
+
+If present, `toPlain` is used instead of enumerating instance fields, and `fromPlain` is used instead of the default field assignment path.
+
+Every decorated instance also receives a non-enumerable helper method:
+
+```ts
+const buffer = instance.seriTo()
+```
+
+It is equivalent to calling the serializer instance's `to(instance)`.
+
 ### `@seri.omit()`
 
 Excludes a field from serialized output.
@@ -143,6 +175,16 @@ class Session {
 Use this for types like `Date`, `Map`, `Set`, custom value objects, or third-party classes that are not registered with `@seri()`.
 
 If a class instance is not registered and not transformed by `@seri.codec()`, serialization throws instead of silently flattening it.
+
+## Built-in Types
+
+The following runtime types are supported without custom codecs:
+
+- `Set`
+- `Map`
+- `Uint8Array`
+
+They preserve shared references and can be nested inside registered classes, arrays, plain objects, and each other.
 
 ## Serialization Model
 

@@ -157,4 +157,68 @@ describe('encode', () => {
       name: 'build',
     })
   })
+
+  it('encodes built-in Set values', () => {
+    const { toPlain } = makeSeri()
+
+    expect(toPlain(new Set([1, 2, 3]))).toEqual({
+      '!builtin': 'Set',
+      '!builtin!values': [1, 2, 3],
+    })
+  })
+
+  it('encodes built-in Map values', () => {
+    const { toPlain } = makeSeri()
+
+    expect(toPlain(new Map<any, any>([[1, 'a'], ['b', { ok: true }]]))).toEqual({
+      '!builtin': 'Map',
+      '!builtin!entries': [[1, 'a'], ['b', { ok: true }]],
+    })
+  })
+
+  it('encodes Uint8Array values', () => {
+    const { toPlain } = makeSeri()
+
+    expect(toPlain(new Uint8Array([1, 2, 255]))).toEqual({
+      '!builtin': 'Uint8Array',
+      '!builtin!data': [1, 2, 255],
+    })
+  })
+
+  it('encodes custom seriTo payloads', () => {
+    const { seri, toPlain } = makeSeri()
+
+    @seri({
+      toPlain: (instance) => {
+        const point = instance as Point
+        return { packed: [point.x, point.y] }
+      },
+      fromPlain: (plain) => {
+        const point = Object.create(Point.prototype) as Point
+        ;[point.x, point.y] = plain.packed as [number, number]
+        return point
+      },
+    })
+    class Point {
+      x = 1
+      y = 2
+    }
+
+    expect(toPlain(new Point())).toEqual({
+      '!': expect.any(Number),
+      packed: [1, 2],
+    })
+  })
+
+  it('adds instance seriTo helper', () => {
+    const { seri, to } = makeSeri()
+
+    @seri()
+    class User {
+      id = 1
+    }
+
+    const instance = new User() as User & { seriTo(): ArrayBuffer }
+    expect(instance.seriTo()).toEqual(to(instance))
+  })
 })

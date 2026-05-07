@@ -27,4 +27,5 @@ export type {
   SeriClassOptions,
   SeriDecorator,
   SeriFactoryOptions,
+  SeriInstance,
 } from './types'

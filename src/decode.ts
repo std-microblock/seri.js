@@ -1,9 +1,16 @@
 import { SeriUnknownReferenceError } from './errors'
 import { SeriRegistry } from './registry'
 
+const BUILTIN_KEY_SUFFIX = 'builtin'
 const ID_SUFFIX = 'id'
 const REF_SUFFIX = 'ref'
 const VALUES_SUFFIX = 'values'
+const ENTRIES_SUFFIX = 'entries'
+const DATA_SUFFIX = 'data'
+
+const BUILTIN_SET = 'Set'
+const BUILTIN_MAP = 'Map'
+const BUILTIN_UINT8ARRAY = 'Uint8Array'
 
 function isTaggedObject(value: unknown, tagKey: string): value is Record<string, unknown> {
   return value !== null && typeof value === 'object' && !Array.isArray(value) && tagKey in value
@@ -11,9 +18,13 @@ function isTaggedObject(value: unknown, tagKey: string): value is Record<string,
 
 export function decodeValue(value: unknown, registry: SeriRegistry, tagKey: string): unknown {
   const references = new Map<number, object>()
+  const builtinKey = `${tagKey}${BUILTIN_KEY_SUFFIX}`
   const idKey = `${tagKey}${ID_SUFFIX}`
   const refKey = `${tagKey}${REF_SUFFIX}`
   const valuesKey = `${tagKey}${VALUES_SUFFIX}`
+  const builtinValuesKey = `${builtinKey}!${VALUES_SUFFIX}`
+  const builtinEntriesKey = `${builtinKey}!${ENTRIES_SUFFIX}`
+  const builtinDataKey = `${builtinKey}!${DATA_SUFFIX}`
 
   const decode = (current: unknown): unknown => {
     if (current === null || typeof current !== 'object') {
@@ -32,6 +43,10 @@ export function decodeValue(value: unknown, registry: SeriRegistry, tagKey: stri
         throw new SeriUnknownReferenceError(referenceId as number)
       }
       return existing
+    }
+
+    if (builtinKey in current) {
+      return decodeBuiltin(current as Record<string, unknown>, decode, builtinKey, idKey, builtinValuesKey, builtinEntriesKey, builtinDataKey, references)
     }
 
     if (valuesKey in current) {
@@ -68,6 +83,21 @@ function decodeRegistered(
 ): object {
   const tag = value[tagKey]
   const entry = registry.getByTag(tag as number)
+  const source = { ...value }
+  delete source[tagKey]
+  delete source[idKey]
+
+  if (entry.metadata.fromPlain) {
+    const decodedSource: Record<string, unknown> = {}
+    for (const [key, raw] of Object.entries(source)) {
+      decodedSource[key] = decode(raw)
+    }
+    const instance = entry.metadata.fromPlain(decodedSource)
+    registerReference(value, instance, idKey, references)
+    entry.metadata.afterDeserialize?.(instance)
+    return instance
+  }
+
   const instance = Object.create(entry.ctor.prototype) as object
   registerReference(value, instance, idKey, references)
 
@@ -84,6 +114,54 @@ function decodeRegistered(
   entry.metadata.afterDeserialize?.(instance)
 
   return instance
+}
+
+function decodeBuiltin(
+  value: Record<string, unknown>,
+  decode: (value: unknown) => unknown,
+  builtinKey: string,
+  idKey: string,
+  valuesKey: string,
+  entriesKey: string,
+  dataKey: string,
+  references: Map<number, object>,
+): object {
+  const builtinName = value[builtinKey]
+
+  if (builtinName === BUILTIN_SET) {
+    const result = new Set<unknown>()
+    registerReference(value, result, idKey, references)
+    const items = value[valuesKey]
+    if (Array.isArray(items)) {
+      for (const item of items) {
+        result.add(decode(item))
+      }
+    }
+    return result
+  }
+
+  if (builtinName === BUILTIN_MAP) {
+    const result = new Map<unknown, unknown>()
+    registerReference(value, result, idKey, references)
+    const entries = value[entriesKey]
+    if (Array.isArray(entries)) {
+      for (const item of entries) {
+        if (Array.isArray(item) && item.length === 2) {
+          result.set(decode(item[0]), decode(item[1]))
+        }
+      }
+    }
+    return result
+  }
+
+  if (builtinName === BUILTIN_UINT8ARRAY) {
+    const bytes = value[dataKey]
+    const result = new Uint8Array(Array.isArray(bytes) ? bytes.map((item) => Number(item)) : [])
+    registerReference(value, result, idKey, references)
+    return result
+  }
+
+  return {}
 }
 
 function decodeArrayWrapper(

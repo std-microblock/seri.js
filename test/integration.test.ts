@@ -136,4 +136,46 @@ describe('integration', () => {
     expect(restored.a.b.c).toBe(restored.x[1].nested)
     expect(restored.a.b.c).toBe(restored.y.z.k[0])
   })
+
+  it('round-trips nested Set, Map and Uint8Array values with shared references', () => {
+    const { seri, toPlain, fromPlain } = makeSeri()
+
+    @seri()
+    class Packet {
+      bytes = new Uint8Array([1, 2, 3])
+    }
+
+    const packet = new Packet()
+    const shared = { packet }
+    const map = new Map<any, any>([[packet.bytes, new Set([shared, packet])]])
+
+    const input = {
+      packet,
+      list: [packet.bytes, packet.bytes],
+      map,
+      shared,
+    }
+
+    const plain = toPlain(input)
+    const restored = fromPlain(plain) as {
+      packet: Packet
+      list: [Uint8Array, Uint8Array]
+      map: Map<Uint8Array, Set<unknown>>
+      shared: { packet: Packet }
+    }
+
+    expect(restored.packet).toBeInstanceOf(Packet)
+    expect(restored.packet.bytes).toBeInstanceOf(Uint8Array)
+    expect(restored.list[0]).toBe(restored.list[1])
+    expect(restored.list[0]).toBe(restored.packet.bytes)
+    expect(restored.shared.packet).toBe(restored.packet)
+
+    const [mapKey] = Array.from(restored.map.keys())
+    expect(mapKey).toBe(restored.packet.bytes)
+
+    const [mapValue] = Array.from(restored.map.values())
+    expect(mapValue).toBeInstanceOf(Set)
+    expect(Array.from(mapValue)).toContain(restored.packet)
+    expect(Array.from(mapValue)).toContain(restored.shared)
+  })
 })

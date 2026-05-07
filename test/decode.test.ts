@@ -160,4 +160,67 @@ describe('decode', () => {
 
     expect(() => from(to(new A()), B)).toThrow(SeriTypeMismatchError)
   })
+
+  it('restores built-in Set values', () => {
+    const { fromPlain } = makeSeri()
+
+    const value = fromPlain({
+      '!builtin': 'Set',
+      '!builtin!values': [1, 2, 3],
+    }) as Set<number>
+
+    expect(value).toBeInstanceOf(Set)
+    expect(Array.from(value)).toEqual([1, 2, 3])
+  })
+
+  it('restores built-in Map values', () => {
+    const { fromPlain } = makeSeri()
+
+    const value = fromPlain({
+      '!builtin': 'Map',
+      '!builtin!entries': [[1, 'a'], ['b', { ok: true }]],
+    }) as Map<unknown, unknown>
+
+    expect(value).toBeInstanceOf(Map)
+    expect(Array.from(value.entries())).toEqual([[1, 'a'], ['b', { ok: true }]])
+  })
+
+  it('restores Uint8Array values', () => {
+    const { fromPlain } = makeSeri()
+
+    const value = fromPlain({
+      '!builtin': 'Uint8Array',
+      '!builtin!data': [1, 2, 255],
+    }) as Uint8Array
+
+    expect(value).toBeInstanceOf(Uint8Array)
+    expect(Array.from(value)).toEqual([1, 2, 255])
+  })
+
+  it('restores custom class plain handlers', () => {
+    const { seri, toPlain, fromPlain } = makeSeri()
+
+    @seri({
+      toPlain: (instance) => {
+        const point = instance as Point
+        return { packed: [point.x, point.y] }
+      },
+      fromPlain: (plain) => {
+        const point = Object.create(Point.prototype) as Point
+        ;[point.x, point.y] = plain.packed as [number, number]
+        return point
+      },
+    })
+    class Point {
+      x = 0
+      y = 0
+    }
+
+    const point = Object.assign(Object.create(Point.prototype) as Point, { x: 3, y: 4 })
+    const value = fromPlain(toPlain(point), Point)
+
+    expect(value).toBeInstanceOf(Point)
+    expect(value.x).toBe(3)
+    expect(value.y).toBe(4)
+  })
 })

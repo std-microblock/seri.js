@@ -5,7 +5,7 @@ import { markFieldOmitted, setClassOptions, setFieldCodec } from './metadata'
 import { SeriRegistry } from './registry'
 import { encodeValue } from './encode'
 import { jsonBufferSerializer } from './serializer'
-import type { Constructor, SeriApi, SeriDecorator, SeriFactoryOptions } from './types'
+import type { Constructor, SeriApi, SeriDecorator, SeriFactoryOptions, SeriInstance } from './types'
 
 export function makeSeri(options: SeriFactoryOptions = {}): SeriApi {
   const serializer = options.serializer ?? jsonBufferSerializer
@@ -15,9 +15,25 @@ export function makeSeri(options: SeriFactoryOptions = {}): SeriApi {
   const seri = ((classOptions) => {
     return (target) => {
       setClassOptions(target as Function, classOptions)
+      defineSeriTo(target as unknown as Constructor)
       registry.register(target as unknown as Constructor, classOptions)
     }
   }) as SeriDecorator
+
+  function defineSeriTo(target: Constructor): void {
+    const prototype = target.prototype as SeriInstance & Record<string, unknown>
+    if (Object.prototype.hasOwnProperty.call(prototype, 'seriTo')) {
+      return
+    }
+    Object.defineProperty(prototype, 'seriTo', {
+      value: function seriTo(this: object): ArrayBuffer {
+        return to(this)
+      },
+      enumerable: false,
+      configurable: true,
+      writable: true,
+    })
+  }
 
   seri.omit = () => {
     return (target, propertyKey) => {
