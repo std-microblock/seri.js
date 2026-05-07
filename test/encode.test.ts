@@ -36,6 +36,27 @@ describe('encode', () => {
     })
   })
 
+  it('supports omit-all with explicit include/default fields', () => {
+    const { seri, toPlain } = makeSeri()
+
+    @seri({ strategy: 'omit-all' })
+    class PartialUser {
+      @seri.include()
+      id = 1
+
+      name = 'hidden'
+
+      @seri.default(123)
+      score!: number
+    }
+
+    expect(toPlain(new PartialUser())).toEqual({
+      '!': expect.any(Number),
+      id: 1,
+      score: undefined,
+    })
+  })
+
   it('uses codec transforms', () => {
     const { seri, toPlain } = makeSeri()
 
@@ -162,8 +183,8 @@ describe('encode', () => {
     const { toPlain } = makeSeri()
 
     expect(toPlain(new Set([1, 2, 3]))).toEqual({
-      '!builtin': 'Set',
-      '!builtin!values': [1, 2, 3],
+      '!': expect.any(Number),
+      values: [1, 2, 3],
     })
   })
 
@@ -171,8 +192,8 @@ describe('encode', () => {
     const { toPlain } = makeSeri()
 
     expect(toPlain(new Map<any, any>([[1, 'a'], ['b', { ok: true }]]))).toEqual({
-      '!builtin': 'Map',
-      '!builtin!entries': [[1, 'a'], ['b', { ok: true }]],
+      '!': expect.any(Number),
+      entries: [[1, 'a'], ['b', { ok: true }]],
     })
   })
 
@@ -180,8 +201,8 @@ describe('encode', () => {
     const { toPlain } = makeSeri()
 
     expect(toPlain(new Uint8Array([1, 2, 255]))).toEqual({
-      '!builtin': 'Uint8Array',
-      '!builtin!data': [1, 2, 255],
+      '!': expect.any(Number),
+      data: [1, 2, 255],
     })
   })
 

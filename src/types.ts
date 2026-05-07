@@ -13,6 +13,8 @@ export interface SeriFactoryOptions {
 
 export interface SeriClassOptions {
   name?: string
+  strategy?: 'include-all' | 'omit-all'
+  objectCreator?: 'noctor' | 'ctor' | (() => object)
   afterDeserialize?: (instance: object) => void
   toPlain?: (instance: object) => Record<string, unknown>
   fromPlain?: (plain: Record<string, unknown>) => object
@@ -26,12 +28,17 @@ export interface FieldCodec<TValue = unknown, TPlain = unknown> {
 export type AnyFieldCodec = FieldCodec<any, any>
 
 export interface FieldMetadata {
+  include?: boolean
   omit?: boolean
   codec?: AnyFieldCodec
+  hasDefault?: boolean
+  defaultValue?: unknown
 }
 
 export interface ClassMetadata {
   name?: string
+  strategy: 'include-all' | 'omit-all'
+  objectCreator: 'noctor' | 'ctor' | (() => object)
   afterDeserialize?: (instance: object) => void
   toPlain?: (instance: object) => Record<string, unknown>
   fromPlain?: (plain: Record<string, unknown>) => object
@@ -51,7 +58,9 @@ export interface SeriInstance {
 
 export interface SeriDecorator {
   (options?: SeriClassOptions): ClassDecorator
+  include(): PropertyDecorator
   omit(): PropertyDecorator
+  default(value: unknown): PropertyDecorator
   codec<TValue, TPlain>(
     toPlain: (value: TValue, instance: object) => TPlain,
     fromPlain: (plain: TPlain) => TValue,

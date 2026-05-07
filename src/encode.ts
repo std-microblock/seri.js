@@ -2,29 +2,18 @@ import type { RegisteredClass } from './types'
 import { SeriUnsupportedValueError } from './errors'
 import { SeriRegistry } from './registry'
 
-const BUILTIN_KEY_SUFFIX = 'builtin'
 const ID_SUFFIX = 'id'
 const REF_SUFFIX = 'ref'
 const VALUES_SUFFIX = 'values'
-const ENTRIES_SUFFIX = 'entries'
-const DATA_SUFFIX = 'data'
-
-const BUILTIN_SET = 'Set'
-const BUILTIN_MAP = 'Map'
-const BUILTIN_UINT8ARRAY = 'Uint8Array'
 
 export function encodeValue(value: unknown, registry: SeriRegistry, tagKey: string): unknown {
   const counts = new WeakMap<object, number>()
   const visited = new WeakSet<object>()
   const referenceIds = new WeakMap<object, number>()
   const encodedReferences = new WeakSet<object>()
-  const builtinKey = `${tagKey}${BUILTIN_KEY_SUFFIX}`
   const idKey = `${tagKey}${ID_SUFFIX}`
   const refKey = `${tagKey}${REF_SUFFIX}`
   const valuesKey = `${tagKey}${VALUES_SUFFIX}`
-  const builtinValuesKey = `${builtinKey}${tagKey}${VALUES_SUFFIX}`
-  const builtinEntriesKey = `${builtinKey}${tagKey}${ENTRIES_SUFFIX}`
-  const builtinDataKey = `${builtinKey}${tagKey}${DATA_SUFFIX}`
   let nextReferenceId = 1
 
   const inspect = (current: unknown): void => {
@@ -45,25 +34,6 @@ export function encodeValue(value: unknown, registry: SeriRegistry, tagKey: stri
       return
     }
 
-    if (current instanceof Set) {
-      for (const item of current.values()) {
-        inspect(item)
-      }
-      return
-    }
-
-    if (current instanceof Map) {
-      for (const [key, value] of current.entries()) {
-        inspect(key)
-        inspect(value)
-      }
-      return
-    }
-
-    if (current instanceof Uint8Array) {
-      return
-    }
-
     const registered = registry.getByCtor(current)
     if (registered) {
       const source = registered.metadata.toPlain
@@ -79,6 +49,9 @@ export function encodeValue(value: unknown, registry: SeriRegistry, tagKey: stri
 
       for (const [key, value] of Object.entries(source)) {
         const field = registered.metadata.fields.get(key)
+        if (!shouldSerializeField(registered, key, field)) {
+          continue
+        }
         if (field?.omit) {
           continue
         }
@@ -136,54 +109,6 @@ export function encodeValue(value: unknown, registry: SeriRegistry, tagKey: stri
         [idKey]: getReferenceId(current),
         [valuesKey]: items,
       }
-    }
-
-    if (current instanceof Set) {
-      if (hasReferences) {
-        encodedReferences.add(current)
-      }
-      return encodeBuiltinCollection(
-        current,
-        BUILTIN_SET,
-        Array.from(current.values(), (item) => encode(item)),
-        builtinKey,
-        idKey,
-        hasReferences ? getReferenceId(current) : undefined,
-        encodedReferences,
-        builtinValuesKey,
-      )
-    }
-
-    if (current instanceof Map) {
-      if (hasReferences) {
-        encodedReferences.add(current)
-      }
-      return encodeBuiltinCollection(
-        current,
-        BUILTIN_MAP,
-        Array.from(current.entries(), ([key, value]) => [encode(key), encode(value)]),
-        builtinKey,
-        idKey,
-        hasReferences ? getReferenceId(current) : undefined,
-        encodedReferences,
-        builtinEntriesKey,
-      )
-    }
-
-    if (current instanceof Uint8Array) {
-      if (hasReferences) {
-        encodedReferences.add(current)
-      }
-      return encodeBuiltinCollection(
-        current,
-        BUILTIN_UINT8ARRAY,
-        Array.from(current),
-        builtinKey,
-        idKey,
-        hasReferences ? getReferenceId(current) : undefined,
-        encodedReferences,
-        builtinDataKey,
-      )
     }
 
     const registered = registry.getByCtor(current)
@@ -249,7 +174,7 @@ function encodeRegistered(
 
   for (const [key, value] of Object.entries(source)) {
     const field = registered.metadata.fields.get(key)
-    if (field?.omit) {
+    if (!shouldSerializeField(registered, key, field)) {
       continue
     }
 
@@ -260,25 +185,19 @@ function encodeRegistered(
   return result
 }
 
-function encodeBuiltinCollection(
-  instance: object,
-  builtinName: string,
-  payload: unknown,
-  builtinKey: string,
-  idKey: string,
-  referenceId: number | undefined,
-  encodedReferences: WeakSet<object>,
-  payloadKey = `${builtinKey}!${VALUES_SUFFIX}`,
-): Record<string, unknown> {
-  const result: Record<string, unknown> = {
-    [builtinKey]: builtinName,
-    [payloadKey]: payload,
+function shouldSerializeField(
+  registered: RegisteredClass,
+  key: string,
+  field = registered.metadata.fields.get(key),
+): boolean {
+  if (field?.omit) {
+    return false
   }
-
-  if (referenceId !== undefined) {
-    result[idKey] = referenceId
-    encodedReferences.add(instance)
+  if (registered.metadata.toPlain) {
+    return true
   }
-
-  return result
+  if (registered.metadata.strategy === 'omit-all') {
+    return field?.include === true
+  }
+  return true
 }

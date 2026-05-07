@@ -30,8 +30,25 @@ export class SeriRegistry {
     }
 
     const metadata = getClassMetadata(ctor)
-    if (options?.name) {
-      metadata.name = options.name
+    if (options) {
+      if (options.name) {
+        metadata.name = options.name
+      }
+      if (options.strategy) {
+        metadata.strategy = options.strategy
+      }
+      if (options.objectCreator) {
+        metadata.objectCreator = options.objectCreator
+      }
+      if (options.afterDeserialize) {
+        metadata.afterDeserialize = options.afterDeserialize
+      }
+      if (options.toPlain) {
+        metadata.toPlain = options.toPlain
+      }
+      if (options.fromPlain) {
+        metadata.fromPlain = options.fromPlain
+      }
     }
 
     const registered: RegisteredClass<T> = {

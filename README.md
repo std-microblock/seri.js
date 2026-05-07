@@ -10,11 +10,13 @@ During deserialization it restores prototypes with `Object.create()`, so constru
 - `makeSeri()` creates an isolated serializer instance
 - `@seri()` registers classes for round-trip serialization
 - `@seri.omit()` excludes a field from serialized output
+- `@seri.include()` explicitly includes a field when using omit-all strategy
+- `@seri.default(value)` supplies a deserialization default for missing fields
 - `@seri.codec()` defines custom field-level encode/decode logic
 - hash-based class tags with collision checks at registration time
 - shared references and self-references are preserved
 - unregistered class instances and function values fail fast by default
-- built-in support for `Set`, `Map`, and `Uint8Array`
+- auto-registered built-in support for `Set`, `Map`, and `Uint8Array`
 - optional class-level `toPlain` / `fromPlain` handlers in `@seri(...)`
 - `from(buffer, Class)` adds runtime type validation
 
@@ -106,8 +108,18 @@ class NamedUser {}
 Options:
 
 - `name?: string`
+- `strategy?: 'include-all' | 'omit-all'`
+- `objectCreator?: 'noctor' | 'ctor' | (() => object)`
 
 If `name` is omitted, the class tag is derived from `class.name`.
+
+`strategy` defaults to `include-all`. If you set `omit-all`, only fields marked with `@seri.include()`, `@seri.default(...)`, or another field decorator that implies inclusion are serialized.
+
+`objectCreator` controls how instances are created during deserialization:
+
+- `'noctor'`: `Object.create(prototype)`
+- `'ctor'`: `new Class()`
+- `() => object`: custom factory
 
 Registered classes can also define custom payload handlers in decorator options:
 
@@ -157,6 +169,34 @@ During deserialization, omitted fields stay absent unless they are present in th
 
 `omit` is also the escape hatch for unsupported runtime values like functions that should not be serialized.
 
+### `@seri.include()`
+
+Marks a field for serialization when the class uses `@seri({ strategy: 'omit-all' })`.
+
+```ts
+@seri({ strategy: 'omit-all' })
+class User {
+  @seri.include()
+  id = 1
+
+  name = 'hidden'
+}
+```
+
+### `@seri.default(value)`
+
+Supplies a default value when a serialized field is missing during deserialization.
+
+```ts
+@seri()
+class Config {
+  @seri.default(123)
+  retries!: number
+}
+```
+
+This is roughly equivalent to a default initializer for deserialization purposes, but the value is tracked in metadata. Object defaults are cloned per instance, so they are not shared between deserialized objects. If the default value is not serializable by the current `seri` instance, decoration throws immediately.
+
 ### `@seri.codec(toPlain, fromPlain)`
 
 Defines custom serialization logic for a single field.
@@ -184,7 +224,7 @@ The following runtime types are supported without custom codecs:
 - `Map`
 - `Uint8Array`
 
-They preserve shared references and can be nested inside registered classes, arrays, plain objects, and each other.
+They are auto-registered internally, so they use the same tag/registry pipeline as normal seri classes. They preserve shared references and can be nested inside registered classes, arrays, plain objects, and each other.
 
 ## Serialization Model
 
@@ -299,3 +339,38 @@ The library throws specific errors for common failure modes.
 - `SeriTypeMismatchError`: `from(buffer, Class)` received a different runtime type
 - `SeriUnknownReferenceError`: deserialization found a missing reference target
 - `SeriUnsupportedValueError`: serialization encountered an unsupported runtime value
+
+## Limitations
+
+- `objectCreator` defaults to `'noctor'`, so constructors are not called during deserialization unless you opt in
+- class field initializers are not re-run during deserialization unless you use `objectCreator: 'ctor'`
+- only registered classes restore their prototype automatically
+- unregistered class instances must be registered or handled by `@seri.codec()`
+- function values must be omitted or transformed before serialization
+- MobX class stores that rely on constructor-time setup should use `afterDeserialize` or `objectCreator: 'ctor'`
+- default JSON serialization follows normal JSON behavior for unsupported values like `undefined`, functions, and symbols
+
+## Development
+
+```bash
+yarn install
+yarn check
+yarn test
+yarn build
+```
+
+## CI
+
+GitHub Actions workflows included in this repository:
+
+- `ci.yml`: runs on pushes to `main` and all pull requests
+- `publish.yml`: publishes to npm when pushing a tag matching `v*`
+
+The publish workflow expects an `NPM_TOKEN` repository secret.
+
+Example release flow:
+
+```bash
+git tag v0.1.0
+git push origin v0.1.0
+```

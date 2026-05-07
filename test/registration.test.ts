@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import { makeSeri, SeriDuplicateNameError, SeriTagCollisionError } from '../src'
+import { defaultHash, makeSeri, SeriDuplicateNameError, SeriTagCollisionError } from '../src'
 
 describe('registration', () => {
   it('registers decorated classes and supports explicit names', () => {
@@ -34,7 +34,14 @@ describe('registration', () => {
   })
 
   it('throws for hash collisions', () => {
-    const { seri } = makeSeri({ hash: () => 7 })
+    const { seri } = makeSeri({
+      hash: (value) => {
+        if (value.startsWith('@@seri/builtin/')) {
+          return defaultHash(value)
+        }
+        return 7
+      },
+    })
 
     @seri({ name: 'pkg/One' })
     class One {}

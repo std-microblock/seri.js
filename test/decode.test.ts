@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import { makeSeri, SeriTypeMismatchError, SeriUnknownReferenceError, SeriUnknownTagError } from '../src'
+import { makeSeri, SeriTypeMismatchError, SeriUnknownReferenceError, SeriUnknownTagError, SeriUnsupportedValueError } from '../src'
 
 describe('decode', () => {
   it('restores decorated instances', () => {
@@ -74,6 +74,80 @@ describe('decode', () => {
     expect(value.retries).toBeUndefined()
   })
 
+  it('applies field defaults for missing properties', () => {
+    const { seri, fromPlain, toPlain } = makeSeri()
+
+    @seri()
+    class Defaults {
+      @seri.default(123)
+      count!: number
+    }
+
+    const tag = (toPlain(Object.create(Defaults.prototype)) as Record<string, unknown>)['!'] as number
+    const value = fromPlain({ '!': tag }, Defaults)
+    expect(value.count).toBe(123)
+  })
+
+  it('throws for unsupported class defaults at decoration time', () => {
+    const { seri } = makeSeri()
+
+    class NotRegistered {
+      value = 1
+    }
+
+    expect(() => {
+      @seri()
+      class Broken {
+        @seri.default(new NotRegistered())
+        child!: NotRegistered
+      }
+
+      return Broken
+    }).toThrow(SeriUnsupportedValueError)
+  })
+
+  it('clones object defaults instead of sharing the same reference', () => {
+    const { seri, fromPlain, toPlain } = makeSeri()
+
+    @seri()
+    class WithDefaultObject {
+      @seri.default({ items: [] as string[] })
+      state!: { items: string[] }
+    }
+
+    const first = fromPlain(toPlain(Object.create(WithDefaultObject.prototype)), WithDefaultObject)
+    const second = fromPlain(toPlain(Object.create(WithDefaultObject.prototype)), WithDefaultObject)
+
+    first.state.items.push('x')
+    expect(second.state.items).toEqual([])
+    expect(first.state).not.toBe(second.state)
+  })
+
+  it('clones registered class defaults instead of sharing the same reference', () => {
+    const { seri, fromPlain, toPlain } = makeSeri()
+
+    @seri()
+    class ChildDefault {
+      value = 1
+    }
+
+    @seri()
+    class WithClassDefault {
+      @seri.default(new ChildDefault())
+      child!: ChildDefault
+    }
+
+    const first = fromPlain(toPlain(Object.create(WithClassDefault.prototype)), WithClassDefault)
+    const second = fromPlain(toPlain(Object.create(WithClassDefault.prototype)), WithClassDefault)
+
+    expect(first.child).toBeInstanceOf(ChildDefault)
+    expect(second.child).toBeInstanceOf(ChildDefault)
+    expect(first.child).not.toBe(second.child)
+
+    first.child.value = 9
+    expect(second.child.value).toBe(1)
+  })
+
   it('does not require calling the constructor during deserialization', () => {
     const { seri, toPlain, fromPlain } = makeSeri()
 
@@ -96,6 +170,40 @@ describe('decode', () => {
     const value = fromPlain(encoded, RequiresArgs)
     expect(value).toBeInstanceOf(RequiresArgs)
     expect(value.label).toBe('ok')
+  })
+
+  it('supports objectCreator: ctor', () => {
+    const { seri, fromPlain, toPlain } = makeSeri()
+
+    @seri({ objectCreator: 'ctor' })
+    class WithCtor {
+      initialized = 'ctor'
+      value = 'default'
+    }
+
+    const plain = toPlain(new WithCtor()) as Record<string, unknown>
+    delete plain.value
+
+    const value = fromPlain(plain, WithCtor)
+    expect(value.initialized).toBe('ctor')
+    expect(value.value).toBe('default')
+  })
+
+  it('supports objectCreator custom factory', () => {
+    const { seri, fromPlain, toPlain } = makeSeri()
+
+    @seri({
+      objectCreator: () => Object.assign(Object.create(WithCustomCreator.prototype) as WithCustomCreator, { created: 'custom' }),
+    })
+    class WithCustomCreator {
+      created = 'ctor'
+      value = 0
+    }
+
+    const tag = (toPlain(Object.create(WithCustomCreator.prototype)) as Record<string, unknown>)['!'] as number
+    const value = fromPlain({ '!': tag, value: 7 }, WithCustomCreator)
+    expect((value as unknown as Record<string, unknown>).created).toBe('custom')
+    expect((value as unknown as Record<string, unknown>).value).toBe(7)
   })
 
   it('restores shared object references', () => {
@@ -162,11 +270,13 @@ describe('decode', () => {
   })
 
   it('restores built-in Set values', () => {
-    const { fromPlain } = makeSeri()
+    const { fromPlain, toPlain } = makeSeri()
+
+    const tag = (toPlain(new Set()) as Record<string, unknown>)['!'] as number
 
     const value = fromPlain({
-      '!builtin': 'Set',
-      '!builtin!values': [1, 2, 3],
+      '!': tag,
+      values: [1, 2, 3],
     }) as Set<number>
 
     expect(value).toBeInstanceOf(Set)
@@ -174,11 +284,13 @@ describe('decode', () => {
   })
 
   it('restores built-in Map values', () => {
-    const { fromPlain } = makeSeri()
+    const { fromPlain, toPlain } = makeSeri()
+
+    const tag = (toPlain(new Map()) as Record<string, unknown>)['!'] as number
 
     const value = fromPlain({
-      '!builtin': 'Map',
-      '!builtin!entries': [[1, 'a'], ['b', { ok: true }]],
+      '!': tag,
+      entries: [[1, 'a'], ['b', { ok: true }]],
     }) as Map<unknown, unknown>
 
     expect(value).toBeInstanceOf(Map)
@@ -186,11 +298,13 @@ describe('decode', () => {
   })
 
   it('restores Uint8Array values', () => {
-    const { fromPlain } = makeSeri()
+    const { fromPlain, toPlain } = makeSeri()
+
+    const tag = (toPlain(new Uint8Array()) as Record<string, unknown>)['!'] as number
 
     const value = fromPlain({
-      '!builtin': 'Uint8Array',
-      '!builtin!data': [1, 2, 255],
+      '!': tag,
+      data: [1, 2, 255],
     }) as Uint8Array
 
     expect(value).toBeInstanceOf(Uint8Array)

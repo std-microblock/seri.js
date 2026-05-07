@@ -1,7 +1,7 @@
 import { decodeValue } from './decode'
 import { SeriTypeMismatchError } from './errors'
 import { defaultHash } from './hash'
-import { markFieldOmitted, setClassOptions, setFieldCodec } from './metadata'
+import { markFieldIncluded, markFieldOmitted, setClassOptions, setFieldCodec, setFieldDefault } from './metadata'
 import { SeriRegistry } from './registry'
 import { encodeValue } from './encode'
 import { jsonBufferSerializer } from './serializer'
@@ -11,6 +11,8 @@ export function makeSeri(options: SeriFactoryOptions = {}): SeriApi {
   const serializer = options.serializer ?? jsonBufferSerializer
   const tagKey = options.tagKey ?? '!'
   const registry = new SeriRegistry(options.hash ?? defaultHash)
+
+  registerBuiltins(registry)
 
   const seri = ((classOptions) => {
     return (target) => {
@@ -38,6 +40,19 @@ export function makeSeri(options: SeriFactoryOptions = {}): SeriApi {
   seri.omit = () => {
     return (target, propertyKey) => {
       markFieldOmitted(target, String(propertyKey))
+    }
+  }
+
+  seri.include = () => {
+    return (target, propertyKey) => {
+      markFieldIncluded(target, String(propertyKey))
+    }
+  }
+
+  seri.default = (value) => {
+    return (target, propertyKey) => {
+      decodeValue(encodeValue(value, registry, tagKey), registry, tagKey)
+      setFieldDefault(target, String(propertyKey), value)
     }
   }
 
@@ -86,4 +101,24 @@ export function makeSeri(options: SeriFactoryOptions = {}): SeriApi {
     toPlain,
     seri,
   }
+}
+
+function registerBuiltins(registry: SeriRegistry): void {
+  registry.register(Set as unknown as Constructor<Set<unknown>>, {
+    name: '@@seri/builtin/Set',
+    toPlain: (instance) => ({ values: Array.from((instance as Set<unknown>).values()) }),
+    fromPlain: (plain) => new Set((plain.values as unknown[]) ?? []),
+  })
+
+  registry.register(Map as unknown as Constructor<Map<unknown, unknown>>, {
+    name: '@@seri/builtin/Map',
+    toPlain: (instance) => ({ entries: Array.from((instance as Map<unknown, unknown>).entries()) }),
+    fromPlain: (plain) => new Map((plain.entries as [unknown, unknown][]) ?? []),
+  })
+
+  registry.register(Uint8Array as unknown as Constructor<Uint8Array>, {
+    name: '@@seri/builtin/Uint8Array',
+    toPlain: (instance) => ({ data: Array.from(instance as Uint8Array) }),
+    fromPlain: (plain) => new Uint8Array((plain.data as number[]) ?? []),
+  })
 }
