@@ -123,6 +123,26 @@ describe('decode', () => {
     expect(first.state).not.toBe(second.state)
   })
 
+  it('injects runtime defaults onto normal new instances', () => {
+    const { seri } = makeSeri()
+
+    @seri()
+    class RuntimeDefaults {
+      @seri.default(new Map<string, number>())
+      cache!: Map<string, number>
+    }
+
+    const first = new RuntimeDefaults()
+    const second = new RuntimeDefaults()
+
+    expect(first.cache).toBeInstanceOf(Map)
+    expect(second.cache).toBeInstanceOf(Map)
+    expect(first.cache).not.toBe(second.cache)
+
+    first.cache.set('a', 1)
+    expect(second.cache.has('a')).toBe(false)
+  })
+
   it('clones registered class defaults instead of sharing the same reference', () => {
     const { seri, fromPlain, toPlain } = makeSeri()
 

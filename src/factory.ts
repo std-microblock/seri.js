@@ -37,6 +37,48 @@ export function makeSeri(options: SeriFactoryOptions = {}): SeriApi {
     })
   }
 
+  function defineRuntimeDefault(target: object, propertyKey: string, value: unknown): void {
+    const existing = Object.getOwnPropertyDescriptor(target, propertyKey)
+    if (existing && !existing.configurable) {
+      return
+    }
+
+    Object.defineProperty(target, propertyKey, {
+      get(this: object): unknown {
+        const own = Object.getOwnPropertyDescriptor(this, propertyKey)
+        if (own && 'value' in own) {
+          return own.value
+        }
+
+        const cloned = cloneRuntimeDefault(value)
+        Object.defineProperty(this, propertyKey, {
+          value: cloned,
+          enumerable: true,
+          configurable: true,
+          writable: true,
+        })
+        return cloned
+      },
+      set(this: object, next: unknown): void {
+        Object.defineProperty(this, propertyKey, {
+          value: next,
+          enumerable: true,
+          configurable: true,
+          writable: true,
+        })
+      },
+      enumerable: false,
+      configurable: true,
+    })
+  }
+
+  function cloneRuntimeDefault<T>(value: T): T {
+    if (value === null || typeof value !== 'object') {
+      return value
+    }
+    return decodeValue(encodeValue(value, registry, tagKey), registry, tagKey) as T
+  }
+
   seri.omit = () => {
     return (target, propertyKey) => {
       markFieldOmitted(target, String(propertyKey))
@@ -51,8 +93,10 @@ export function makeSeri(options: SeriFactoryOptions = {}): SeriApi {
 
   seri.default = (value) => {
     return (target, propertyKey) => {
+      const key = String(propertyKey)
       decodeValue(encodeValue(value, registry, tagKey), registry, tagKey)
-      setFieldDefault(target, String(propertyKey), value)
+      setFieldDefault(target, key, value)
+      defineRuntimeDefault(target, key, value)
     }
   }
 
