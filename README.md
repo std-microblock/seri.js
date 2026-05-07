@@ -2,7 +2,7 @@
 
 `seri.js` is a small TypeScript library for serializing and deserializing class instances with decorators.
 
-It converts registered class instances into plain objects with a compact hash tag, then hands the result to a pluggable `ArrayBuffer` serializer.
+It converts registered class instances into plain objects with a compact hash tag, then hands the result to a pluggable `ArrayBufferLike` serializer.
 During deserialization it restores prototypes with `Object.create()`, so constructors are not invoked.
 
 ## Features
@@ -86,7 +86,7 @@ Options:
 Returns:
 
 - `toPlain(value): unknown`
-- `to(value): ArrayBuffer`
+- `to(value): ArrayBufferLike`
 - `fromPlain(value): unknown`
 - `fromPlain(value, Class): Class`
 - `from(buffer): unknown`
@@ -261,14 +261,14 @@ The built-in serializer uses:
 - `JSON.stringify()` / `JSON.parse()`
 - `TextEncoder` / `TextDecoder`
 
-So the default wire format is JSON stored in an `ArrayBuffer`.
+So the default wire format is JSON stored in an `ArrayBufferLike`.
 
 You can replace it with MessagePack, CBOR, protobuf, or any custom format by providing:
 
 ```ts
 interface BufferSerializer {
-  serialize(value: unknown): ArrayBuffer
-  deserialize(buffer: ArrayBuffer): unknown
+  serialize(value: unknown): ArrayBufferLike
+  deserialize(buffer: ArrayBufferLike): unknown
 }
 ```
 

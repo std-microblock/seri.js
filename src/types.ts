@@ -1,8 +1,8 @@
 export type Constructor<T extends object = object> = new (...args: any[]) => T
 
 export interface BufferSerializer {
-  serialize(value: unknown): ArrayBuffer
-  deserialize(buffer: ArrayBuffer): unknown
+  serialize(value: unknown): ArrayBufferLike
+  deserialize(buffer: ArrayBufferLike): unknown
 }
 
 export interface SeriFactoryOptions {
@@ -53,7 +53,7 @@ export interface RegisteredClass<T extends object = object> {
 }
 
 export interface SeriInstance {
-  seriTo(): ArrayBuffer
+  seriTo(): ArrayBufferLike
 }
 
 export interface SeriDecorator {
@@ -68,11 +68,11 @@ export interface SeriDecorator {
 }
 
 export interface SeriApi {
-  from(buffer: ArrayBuffer): unknown
-  from<T extends object>(buffer: ArrayBuffer, clazz: Constructor<T>): T
+  from(buffer: ArrayBufferLike): unknown
+  from<T extends object>(buffer: ArrayBufferLike, clazz: Constructor<T>): T
   fromPlain(value: unknown): unknown
   fromPlain<T extends object>(value: unknown, clazz: Constructor<T>): T
-  to(value: unknown): ArrayBuffer
+  to(value: unknown): ArrayBufferLike
   toPlain(value: unknown): unknown
   seri: SeriDecorator
 }

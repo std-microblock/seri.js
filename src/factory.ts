@@ -28,7 +28,7 @@ export function makeSeri(options: SeriFactoryOptions = {}): SeriApi {
       return
     }
     Object.defineProperty(prototype, 'seriTo', {
-      value: function seriTo(this: object): ArrayBuffer {
+      value: function seriTo(this: object): ArrayBufferLike {
         return to(this)
       },
       enumerable: false,
@@ -124,13 +124,13 @@ export function makeSeri(options: SeriFactoryOptions = {}): SeriApi {
     return decoded
   }
 
-  function to(value: unknown): ArrayBuffer {
+  function to(value: unknown): ArrayBufferLike {
     return serializer.serialize(toPlain(value))
   }
 
-  function from(buffer: ArrayBuffer): unknown
-  function from<T extends object>(buffer: ArrayBuffer, clazz: Constructor<T>): T
-  function from<T extends object>(buffer: ArrayBuffer, clazz?: Constructor<T>): unknown {
+  function from(buffer: ArrayBufferLike): unknown
+  function from<T extends object>(buffer: ArrayBufferLike, clazz: Constructor<T>): T
+  function from<T extends object>(buffer: ArrayBufferLike, clazz?: Constructor<T>): unknown {
     const value = serializer.deserialize(buffer)
     if (!clazz) {
       return fromPlain(value)

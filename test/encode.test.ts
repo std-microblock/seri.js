@@ -239,7 +239,7 @@ describe('encode', () => {
       id = 1
     }
 
-    const instance = new User() as User & { seriTo(): ArrayBuffer }
+    const instance = new User() as User & { seriTo(): ArrayBufferLike }
     expect(instance.seriTo()).toEqual(to(instance))
   })
 })
