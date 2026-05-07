@@ -1,14 +1,10 @@
-import type { BufferSerializer } from './types'
+import type { WireSerializer } from './types'
 
-export const jsonBufferSerializer: BufferSerializer = {
-  serialize(value: unknown): ArrayBufferLike {
-    const encoder = new TextEncoder()
-    const bytes = encoder.encode(JSON.stringify(value))
-    return bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength)
+export const jsonStringSerializer: WireSerializer<string> = {
+  serialize(value: unknown): string {
+    return JSON.stringify(value)
   },
-  deserialize(buffer: ArrayBufferLike): unknown {
-    const decoder = new TextDecoder()
-    const json = decoder.decode(new Uint8Array(buffer))
-    return JSON.parse(json)
+  deserialize(buffer: string): unknown {
+    return JSON.parse(buffer)
   },
 }

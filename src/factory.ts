@@ -4,11 +4,11 @@ import { defaultHash } from './hash'
 import { markFieldIncluded, markFieldOmitted, setClassOptions, setFieldCodec, setFieldDefault } from './metadata'
 import { SeriRegistry } from './registry'
 import { encodeValue } from './encode'
-import { jsonBufferSerializer } from './serializer'
+import { jsonStringSerializer } from './serializer'
 import type { Constructor, SeriApi, SeriDecorator, SeriFactoryOptions, SeriInstance } from './types'
 
-export function makeSeri(options: SeriFactoryOptions = {}): SeriApi {
-  const serializer = options.serializer ?? jsonBufferSerializer
+export function makeSeri<TWire = string>(options: SeriFactoryOptions<TWire> = {}): SeriApi<TWire> {
+  const serializer = (options.serializer ?? jsonStringSerializer) as NonNullable<SeriFactoryOptions<TWire>['serializer']>
   const tagKey = options.tagKey ?? '!'
   const registry = new SeriRegistry(options.hash ?? defaultHash)
 
@@ -23,12 +23,12 @@ export function makeSeri(options: SeriFactoryOptions = {}): SeriApi {
   }) as SeriDecorator
 
   function defineSeriTo(target: Constructor): void {
-    const prototype = target.prototype as SeriInstance & Record<string, unknown>
+    const prototype = target.prototype as SeriInstance<TWire> & Record<string, unknown>
     if (Object.prototype.hasOwnProperty.call(prototype, 'seriTo')) {
       return
     }
     Object.defineProperty(prototype, 'seriTo', {
-      value: function seriTo(this: object): ArrayBufferLike {
+      value: function seriTo(this: object): TWire {
         return to(this)
       },
       enumerable: false,
@@ -124,13 +124,13 @@ export function makeSeri(options: SeriFactoryOptions = {}): SeriApi {
     return decoded
   }
 
-  function to(value: unknown): ArrayBufferLike {
+  function to(value: unknown): TWire {
     return serializer.serialize(toPlain(value))
   }
 
-  function from(buffer: ArrayBufferLike): unknown
-  function from<T extends object>(buffer: ArrayBufferLike, clazz: Constructor<T>): T
-  function from<T extends object>(buffer: ArrayBufferLike, clazz?: Constructor<T>): unknown {
+  function from(buffer: TWire): unknown
+  function from<T extends object>(buffer: TWire, clazz: Constructor<T>): T
+  function from<T extends object>(buffer: TWire, clazz?: Constructor<T>): unknown {
     const value = serializer.deserialize(buffer)
     if (!clazz) {
       return fromPlain(value)

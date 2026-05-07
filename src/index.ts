@@ -10,7 +10,7 @@ const fromPlain = defaultApi.fromPlain
 export default seri
 export { from, fromPlain, makeSeri, seri, to, toPlain }
 export { defaultHash } from './hash'
-export { jsonBufferSerializer } from './serializer'
+export { jsonStringSerializer } from './serializer'
 export {
   SeriDuplicateNameError,
   SeriTagCollisionError,
@@ -20,7 +20,6 @@ export {
   SeriUnsupportedValueError,
 } from './errors'
 export type {
-  BufferSerializer,
   Constructor,
   FieldCodec,
   SeriApi,
@@ -28,4 +27,5 @@ export type {
   SeriDecorator,
   SeriFactoryOptions,
   SeriInstance,
+  WireSerializer,
 } from './types'
