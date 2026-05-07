@@ -1,0 +1,40 @@
+{
+  "name": "seri.js",
+  "version": "0.1.0",
+  "description": "TypeScript library for serializing and deserializing class instances.",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/std-microblock/seri.js.git"
+  },
+  "homepage": "https://github.com/std-microblock/seri.js#readme",
+  "bugs": {
+    "url": "https://github.com/std-microblock/seri.js/issues"
+  },
+  "type": "commonjs",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "publishConfig": {
+    "access": "public"
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "test": "vitest run",
+    "check": "tsc -p tsconfig.test.json",
+    "prepublishOnly": "yarn check && yarn test && yarn build"
+  },
+  "keywords": [
+    "serialization",
+    "serializer",
+    "typescript",
+    "decorators"
+  ],
+  "devDependencies": {
+    "typescript": "^5.8.3",
+    "vitest": "^3.2.4"
+  },
+  "packageManager": "yarn@1.22.22"
+}
