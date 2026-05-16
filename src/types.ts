@@ -1,3 +1,5 @@
+import { SeriRegistry } from "./registry"
+
 export type Constructor<T extends object = object> = new (...args: any[]) => T
 
 export interface WireSerializer<TWire = string> {
@@ -75,4 +77,5 @@ export interface SeriApi<TWire = string> {
   to(value: unknown): TWire
   toPlain(value: unknown): unknown
   seri: SeriDecorator
+  registry: SeriRegistry
 }

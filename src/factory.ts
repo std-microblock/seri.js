@@ -144,6 +144,7 @@ export function makeSeri<TWire = string>(options: SeriFactoryOptions<TWire> = {}
     to,
     toPlain,
     seri,
+    registry
   }
 }
 
