@@ -73,7 +73,7 @@ function decodeRegistered(
   delete source[tagKey]
   delete source[idKey]
 
-  const instance = createInstance(entry, source)
+  const instance = registry.create(entry.ctor)
   registerReference(value, instance, idKey, references)
 
   if (entry.metadata.fromPlain) {
@@ -81,7 +81,7 @@ function decodeRegistered(
     for (const [key, raw] of Object.entries(source)) {
       decodedSource[key] = decode(raw)
     }
-    const restored = entry.metadata.fromPlain(decodedSource, instance)
+    const restored = entry.metadata.fromPlain(decodedSource)
     if (restored !== instance) {
       registerReference(value, restored, idKey, references)
       applyDefaults(restored, entry.metadata.fields, registry, tagKey)
@@ -107,21 +107,6 @@ function decodeRegistered(
   entry.metadata.afterDeserialize?.(instance)
 
   return instance
-}
-
-function createInstance(
-  entry: ReturnType<SeriRegistry['getByTag']>,
-  source: Record<string, unknown>,
-): object {
-  if (entry.metadata.objectCreator === 'ctor') {
-    return new entry.ctor()
-  }
-
-  if (typeof entry.metadata.objectCreator === 'function') {
-    return entry.metadata.objectCreator()
-  }
-
-  return Object.create(entry.ctor.prototype) as object
 }
 
 function applyDefaults(

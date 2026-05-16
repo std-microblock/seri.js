@@ -1,20 +1,23 @@
 import { SeriDuplicateNameError, SeriTagCollisionError, SeriUnknownTagError } from './errors'
 import { getClassMetadata } from './metadata'
-import type { Constructor, RegisteredClass, SeriClassOptions } from './types'
+import type { AnyRegisteredClass, Constructor, RegisteredClass, SeriClassOptions } from './types'
 
 export class SeriRegistry {
-  private readonly byCtor = new Map<Constructor, RegisteredClass>()
-  private readonly byName = new Map<string, RegisteredClass>()
-  private readonly byTag = new Map<number, RegisteredClass>()
+  private readonly byCtor = new Map<Constructor, AnyRegisteredClass>()
+  private readonly byName = new Map<string, AnyRegisteredClass>()
+  private readonly byTag = new Map<number, AnyRegisteredClass>()
 
   constructor(
     private readonly hash: (value: string) => number,
   ) {}
 
-  register<T extends object>(ctor: Constructor<T>, options?: SeriClassOptions): RegisteredClass<T> {
+  register<T extends object, TPlain extends Record<string, unknown> = Record<string, unknown>>(
+    ctor: Constructor<T>,
+    options?: SeriClassOptions<T, TPlain>,
+  ): RegisteredClass<T, TPlain> {
     const existing = this.byCtor.get(ctor)
     if (existing) {
-      return existing as RegisteredClass<T>
+      return existing
     }
 
     const className = options?.name ?? ctor.name
@@ -29,7 +32,7 @@ export class SeriRegistry {
       throw new SeriTagCollisionError(tag, collision.className, className)
     }
 
-    const metadata = getClassMetadata(ctor)
+    const metadata = getClassMetadata<T, TPlain>(ctor)
     if (options) {
       if (options.name) {
         metadata.name = options.name
@@ -51,7 +54,7 @@ export class SeriRegistry {
       }
     }
 
-    const registered: RegisteredClass<T> = {
+    const registered: RegisteredClass<T, TPlain> = {
       ctor,
       className,
       tag,
@@ -65,11 +68,28 @@ export class SeriRegistry {
     return registered
   }
 
-  getByCtor(value: object): RegisteredClass | undefined {
+  getByCtor<T extends object, TPlain extends Record<string, unknown> = Record<string, unknown>>(value: T): RegisteredClass<T, TPlain> | undefined {
     return this.byCtor.get(value.constructor as Constructor)
   }
 
-  getByTag(tag: number): RegisteredClass {
+  create<T extends object>(ctor: Constructor<T>): T {
+    const entry = this.byCtor.get(ctor)
+    if (!entry) {
+      return Object.create(ctor.prototype) as T
+    }
+
+    if (entry.metadata.objectCreator === 'ctor') {
+      return new ctor()
+    }
+
+    if (typeof entry.metadata.objectCreator === 'function') {
+      return entry.metadata.objectCreator()
+    }
+
+    return Object.create(ctor.prototype) as T
+  }
+
+  getByTag<T extends object = object, TPlain extends Record<string, unknown> = Record<string, unknown>>(tag: number): RegisteredClass<T, TPlain> {
     const entry = this.byTag.get(tag)
     if (!entry) {
       throw new SeriUnknownTagError(tag)

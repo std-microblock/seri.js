@@ -1,8 +1,10 @@
 import type { AnyFieldCodec, ClassMetadata, Constructor, FieldMetadata, SeriClassOptions } from './types'
 
-const metadataStore = new WeakMap<Function, ClassMetadata>()
+const metadataStore = new WeakMap<Function, ClassMetadata<any, any>>()
 
-function ensureClassMetadata(ctor: Function): ClassMetadata {
+function ensureClassMetadata<T extends object = object, TPlain extends Record<string, unknown> = Record<string, unknown>>(
+  ctor: Function,
+): ClassMetadata<T, TPlain> {
   let metadata = metadataStore.get(ctor)
   if (!metadata) {
     metadata = {
@@ -15,8 +17,11 @@ function ensureClassMetadata(ctor: Function): ClassMetadata {
   return metadata
 }
 
-export function setClassOptions(ctor: Function, options?: SeriClassOptions): ClassMetadata {
-  const metadata = ensureClassMetadata(ctor)
+export function setClassOptions<T extends object, TPlain extends Record<string, unknown> = Record<string, unknown>>(
+  ctor: Constructor<T>,
+  options?: SeriClassOptions<T, TPlain>,
+): ClassMetadata<T, TPlain> {
+  const metadata = ensureClassMetadata<T, TPlain>(ctor)
   if (options?.name) {
     metadata.name = options.name
   }
@@ -76,7 +81,9 @@ export function setFieldCodec<TValue, TPlain>(
   field.codec = codec
 }
 
-export function getClassMetadata<T extends object>(ctor: Constructor<T>): ClassMetadata {
+export function getClassMetadata<T extends object, TPlain extends Record<string, unknown> = Record<string, unknown>>(
+  ctor: Constructor<T>,
+): ClassMetadata<T, TPlain> {
   const metadata = metadataStore.get(ctor)
   if (metadata) {
     return metadata

@@ -13,13 +13,13 @@ export interface SeriFactoryOptions<TWire = string> {
   tagKey?: string
 }
 
-export interface SeriClassOptions {
+export interface SeriClassOptions<T extends object = object, TPlain extends Record<string, unknown> = Record<string, unknown>> {
   name?: string
   strategy?: 'include-all' | 'omit-all'
-  objectCreator?: 'noctor' | 'ctor' | (() => object)
-  afterDeserialize?: (instance: object) => void
-  toPlain?: (instance: object) => Record<string, unknown>
-  fromPlain?: (plain: Record<string, unknown>, instance?: object) => object
+  objectCreator?: 'noctor' | 'ctor' | (() => T)
+  afterDeserialize?: (instance: T) => void
+  toPlain?: (instance: T) => TPlain
+  fromPlain?: (plain: TPlain) => T
 }
 
 export interface FieldCodec<TValue = unknown, TPlain = unknown> {
@@ -37,29 +37,31 @@ export interface FieldMetadata {
   defaultValue?: unknown
 }
 
-export interface ClassMetadata {
+export interface ClassMetadata<T extends object = object, TPlain extends Record<string, unknown> = Record<string, unknown>> {
   name?: string
   strategy: 'include-all' | 'omit-all'
-  objectCreator: 'noctor' | 'ctor' | (() => object)
-  afterDeserialize?: (instance: object) => void
-  toPlain?: (instance: object) => Record<string, unknown>
-  fromPlain?: (plain: Record<string, unknown>, instance?: object) => object
+  objectCreator: 'noctor' | 'ctor' | (() => T)
+  afterDeserialize?: (instance: T) => void
+  toPlain?: (instance: T) => TPlain
+  fromPlain?: (plain: TPlain) => T
   fields: Map<string, FieldMetadata>
 }
 
-export interface RegisteredClass<T extends object = object> {
+export interface RegisteredClass<T extends object = object, TPlain extends Record<string, unknown> = Record<string, unknown>> {
   ctor: Constructor<T>
   className: string
   tag: number
-  metadata: ClassMetadata
+  metadata: ClassMetadata<T, TPlain>
 }
+
+export type AnyRegisteredClass = RegisteredClass<any, any>
 
 export interface SeriInstance<TWire = string> {
   seriTo(): TWire
 }
 
 export interface SeriDecorator {
-  (options?: SeriClassOptions): ClassDecorator
+  <T extends object, TPlain extends Record<string, unknown> = Record<string, unknown>>(options?: SeriClassOptions<T, TPlain>): ClassDecorator
   include(): PropertyDecorator
   omit(): PropertyDecorator
   default(value: unknown): PropertyDecorator

@@ -5,7 +5,7 @@ import { markFieldIncluded, markFieldOmitted, setClassOptions, setFieldCodec, se
 import { SeriRegistry } from './registry'
 import { encodeValue } from './encode'
 import { jsonStringSerializer } from './serializer'
-import type { Constructor, SeriApi, SeriDecorator, SeriFactoryOptions, SeriInstance } from './types'
+import type { Constructor, SeriApi, SeriClassOptions, SeriDecorator, SeriFactoryOptions, SeriInstance } from './types'
 
 export function makeSeri<TWire = string>(options: SeriFactoryOptions<TWire> = {}): SeriApi<TWire> {
   const serializer = (options.serializer ?? jsonStringSerializer) as NonNullable<SeriFactoryOptions<TWire>['serializer']>
@@ -16,9 +16,11 @@ export function makeSeri<TWire = string>(options: SeriFactoryOptions<TWire> = {}
 
   const seri = ((classOptions) => {
     return (target) => {
-      setClassOptions(target as Function, classOptions)
+      const ctor = target as unknown as Constructor<any>
+      const options = classOptions as SeriClassOptions<any, any> | undefined
+      setClassOptions(ctor, options)
       defineSeriTo(target as unknown as Constructor)
-      registry.register(target as unknown as Constructor, classOptions)
+      registry.register(ctor, options)
     }
   }) as SeriDecorator
 
@@ -153,9 +155,8 @@ function registerBuiltins(registry: SeriRegistry): void {
     name: '@@seri/builtin/Set',
     objectCreator: 'ctor',
     toPlain: (instance) => ({ values: Array.from((instance as Set<unknown>).values()) }),
-    fromPlain: (plain, instance) => {
-      const result = (instance as Set<unknown>) ?? new Set<unknown>()
-      result.clear()
+    fromPlain: (plain) => {
+      const result = new Set<unknown>()
       for (const item of (plain.values as unknown[]) ?? []) {
         result.add(item)
       }
@@ -167,9 +168,8 @@ function registerBuiltins(registry: SeriRegistry): void {
     name: '@@seri/builtin/Map',
     objectCreator: 'ctor',
     toPlain: (instance) => ({ entries: Array.from((instance as Map<unknown, unknown>).entries()) }),
-    fromPlain: (plain, instance) => {
-      const result = (instance as Map<unknown, unknown>) ?? new Map<unknown, unknown>()
-      result.clear()
+    fromPlain: (plain) => {
+      const result = new Map<unknown, unknown>()
       for (const [key, value] of (plain.entries as [unknown, unknown][]) ?? []) {
         result.set(key, value)
       }

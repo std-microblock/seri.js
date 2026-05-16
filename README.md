@@ -92,6 +92,38 @@ Returns:
 - `from(buffer): unknown`
 - `from(buffer, Class): Class`
 - `seri`: decorator API
+- `registry`: class registry used by this serializer instance
+
+### `registry.register(Class, options?)`
+
+Registers a class programmatically. This is the same registry used by `@seri()`, and is useful for third-party classes or runtime types that you cannot decorate.
+
+```ts
+const { registry } = makeSeri()
+
+class Point {
+  constructor(
+    public x: number,
+    public y: number,
+  ) {}
+}
+
+registry.register<Point, { x: number; y: number }>(Point, {
+  name: 'app/Point',
+  objectCreator: () => new Point(0, 0),
+  toPlain: (point) => ({ x: point.x, y: point.y }),
+  fromPlain: (plain) => {
+    const point = registry.create(Point)
+    point.x = plain.x
+    point.y = plain.y
+    return point
+  },
+})
+```
+
+The first type parameter is the runtime instance type. The second type parameter is the plain tagged payload handled by class-level `toPlain` / `fromPlain`, so mismatched field names or field types are caught by TypeScript.
+
+Use `registry.create(Class)` when a custom `fromPlain` handler should follow the registered `objectCreator` behavior for that class.
 
 ### `@seri(options?)`
 
@@ -306,6 +338,40 @@ class Holder {
   )
   state = observable({ count: 1 })
 }
+```
+
+### ObservableMap and ObservableSet
+
+`seri.js` does not auto-register MobX `ObservableMap` or `ObservableSet`. The built-in `Map` and `Set` support is registered for native constructors only. Register the MobX collection constructors in the serializer registry when you want them handled like built-ins.
+
+```ts
+import { observable } from 'mobx'
+
+const { registry } = makeSeri()
+
+const observableSet = observable.set<number>()
+registry.register<typeof observableSet, { values: number[] }>(observableSet.constructor as new () => typeof observableSet, {
+  name: 'mobx/ObservableSet',
+  objectCreator: () => observable.set<number>(),
+  toPlain: (set) => ({ values: Array.from(set.values()) }),
+  fromPlain: (plain) => {
+    const set = observable.set<number>()
+    plain.values.forEach((value) => set.add(value))
+    return set
+  },
+})
+
+const observableMap = observable.map<string, number>()
+registry.register<typeof observableMap, { entries: [string, number][] }>(observableMap.constructor as new () => typeof observableMap, {
+  name: 'mobx/ObservableMap',
+  objectCreator: () => observable.map<string, number>(),
+  toPlain: (map) => ({ entries: Array.from(map.entries()) }),
+  fromPlain: (plain) => {
+    const map = observable.map<string, number>()
+    plain.entries.forEach(([key, value]) => map.set(key, value))
+    return map
+  },
+})
 ```
 
 ### `makeAutoObservable(this)` class stores
